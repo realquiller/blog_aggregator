@@ -74,22 +74,21 @@ func main() {
 
 }
 
+// Example DB login (for local dev):
 // DB LOGIN: psql "postgres://postgres:postgres@localhost:5432/gator"
 // DB LOGIN: psql "postgres://postgres:postgres@localhost:5432/gator?sslmode=disable"
 
+// Example DB migration:
 // goose postgres postgres://postgres:postgres@localhost:5432/gator up
 
+// Example commands:
 // go run . reset
-
 // go run . register "username"
 // go run . login "username"
-
 // go run . addfeed "Boot.dev Blog" "https://blog.boot.dev/index.xml"
 // go run . addfeed "TechCrunch" "https://techcrunch.com/feed/"
 // go run . addfeed "Hacker News" "https://news.ycombinator.com/rss"
-
 // go run . feeds
 // go run . follow feed
 // go run . following
-
 // go run . agg 30s
