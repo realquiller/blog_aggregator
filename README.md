@@ -13,6 +13,7 @@ Install the `gator` CLI globally with this command:
 
 ```bash
 go install github.com/realquiller/blog_aggregator@latest
+```
 
 This places the CLI in your $GOPATH/bin directory (or $HOME/go/bin by default).
 Ensure this directory is in your terminal's PATH to use gator from anywhere.
