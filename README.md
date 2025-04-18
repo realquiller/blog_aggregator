@@ -28,7 +28,6 @@ gator register <name>
 Log into the program as the specified user.
 ```bash
 gator login <name>
-
 ```
 Start the aggregator (e.g., 5s, 1m, 1h).
 ```bash
