@@ -23,6 +23,7 @@ type RSSItem struct {
 	Link        string `xml:"link"`
 	Description string `xml:"description"`
 	PubDate     string `xml:"pubDate"`
+	Content     string `xml:"encoded"`
 }
 
 func FetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
@@ -83,10 +84,9 @@ func FetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	for i := range my_feed.Channel.Item {
 		my_feed.Channel.Item[i].Title = html.UnescapeString(my_feed.Channel.Item[i].Title)
 		my_feed.Channel.Item[i].Description = html.UnescapeString(my_feed.Channel.Item[i].Description)
+		my_feed.Channel.Item[i].Content = html.UnescapeString(my_feed.Channel.Item[i].Content)
 	}
 
 	// returning clean feed
 	return &my_feed, nil
 }
-
-

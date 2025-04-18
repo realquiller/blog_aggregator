@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -287,6 +290,50 @@ func HandlerUnfollow(s *State, cmd Command, user database.User) error {
 	return nil
 }
 
+func HandlerBrowse(s *State, cmd Command, user database.User) error {
+	// Default limit
+	limit := int32(2)
+
+	// Validate argument count first
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("usage: browse <optional_number_of_posts>")
+	}
+
+	// If user provided a number, parse it
+	if len(cmd.Args) == 1 {
+		limitStr := cmd.Args[0]
+		limit64, err := strconv.ParseInt(limitStr, 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid number of posts: %v", err)
+		}
+		limit = int32(limit64)
+	}
+
+	posts, err := s.Db.GetPostsForUser(context.Background(), database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit:  limit,
+	})
+
+	if err != nil {
+		return fmt.Errorf("error retrieving posts: %w", err)
+	}
+
+	// Print the posts
+	for _, post := range posts {
+		fmt.Printf("Title: %s\n", post.Title)
+		fmt.Printf("URL: %s\n", post.Url)
+		fmt.Printf("Description: %s\n", post.Description)
+		if post.PublishedAt.Valid {
+			fmt.Printf("Published at: %s\n", post.PublishedAt.Time.Format(time.RFC1123))
+		} else {
+			fmt.Println("Published at: N/A")
+		}
+		fmt.Println("----------------------")
+	}
+
+	return nil
+}
+
 func MiddlewareLoggedIn(handler func(s *State, cmd Command, user database.User) error) func(*State, Command) error {
 	// 1. Gets the user
 	// 2. Calls the original handler with the user
@@ -326,7 +373,60 @@ func scrapeFeeds(s *State) error {
 			continue
 		}
 
-		fmt.Printf("Feed title: %s\n", item.Title)
+		// Parse publication date
+		var publishedAt sql.NullTime
+		if item.PubDate != "" {
+			formats := []string{
+				time.RFC1123Z,
+				time.RFC1123,
+				time.RFC822,
+				time.RFC822Z,
+				time.RFC850,
+				time.ANSIC,
+				time.RFC3339,
+			}
+			for _, format := range formats {
+				parsedTime, err := time.Parse(format, item.PubDate)
+				if err == nil {
+					publishedAt = sql.NullTime{
+						Time:  parsedTime,
+						Valid: true,
+					}
+					break
+				}
+			}
+			if !publishedAt.Valid {
+				log.Printf("⚠️ Couldn't parse pubDate: %s\n", item.PubDate)
+			}
+		}
+
+		desc := strings.TrimSpace(item.Content)
+		if desc == "" {
+			desc = strings.TrimSpace(item.Description)
+		}
+
+		_, err := s.Db.CreatePost(context.Background(), database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			Title:       item.Title,
+			Url:         item.Link,
+			Description: desc,
+			PublishedAt: publishedAt,
+			FeedID:      feed.ID,
+		})
+
+		if err != nil {
+			// Check if it's a duplicate key error
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				log.Printf("⏩ Skipping duplicate post: %s", item.Link)
+				continue
+			}
+			log.Printf("Error saving post '%s': %v", item.Title, err)
+			continue
+		}
+
+		log.Printf("Saved post: %s\n", item.Title)
 	}
 
 	return nil
